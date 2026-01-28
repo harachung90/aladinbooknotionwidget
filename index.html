@@ -36,7 +36,6 @@
         .search-input-wrapper {
             display: flex;
             gap: 10px;
-            margin-bottom: 15px;
         }
 
         input[type="text"] {
@@ -79,32 +78,6 @@
             background: #ccc;
             cursor: not-allowed;
             transform: none;
-        }
-
-        .api-key-input {
-            margin-bottom: 12px;
-        }
-
-        .api-key-input input {
-            width: 100%;
-        }
-
-        .api-help {
-            font-size: 13px;
-            color: #666;
-            background: #f8f9fa;
-            padding: 12px;
-            border-radius: 6px;
-            line-height: 1.6;
-        }
-
-        .api-help a {
-            color: #4a90e2;
-            text-decoration: none;
-        }
-
-        .api-help a:hover {
-            text-decoration: underline;
         }
 
         .loading {
@@ -235,14 +208,6 @@
 <body>
     <div class="container">
         <div class="search-box">
-            <div class="api-key-input">
-                <input type="text" id="apiKey" placeholder="알라딘 TTB API 키를 입력하세요">
-            </div>
-            <div class="api-help">
-                💡 <strong>API 키 발급받기:</strong> 
-                <a href="https://www.aladin.co.kr/ttb/wblog_manage.aspx" target="_blank">알라딘 TTB 관리 페이지</a>에서 무료로 발급받을 수 있습니다. 
-                (알라딘 회원가입 필요)
-            </div>
             <div class="search-input-wrapper">
                 <input type="text" id="searchInput" placeholder="책 제목, 저자, ISBN으로 검색하세요" />
                 <button id="searchBtn" onclick="searchBooks()">검색</button>
@@ -253,16 +218,8 @@
     </div>
 
     <script>
-        // 로컬 스토리지에서 API 키 불러오기
-        const savedApiKey = localStorage.getItem('aladinApiKey');
-        if (savedApiKey) {
-            document.getElementById('apiKey').value = savedApiKey;
-        }
-
-        // API 키 저장
-        document.getElementById('apiKey').addEventListener('change', (e) => {
-            localStorage.setItem('aladinApiKey', e.target.value);
-        });
+        // 하드코딩된 API 키
+        const API_KEY = 'ttbharachung901616001';
 
         // Enter 키로 검색
         document.getElementById('searchInput').addEventListener('keypress', (e) => {
@@ -272,15 +229,9 @@
         });
 
         async function searchBooks() {
-            const apiKey = document.getElementById('apiKey').value.trim();
             const query = document.getElementById('searchInput').value.trim();
             const resultsDiv = document.getElementById('results');
             const searchBtn = document.getElementById('searchBtn');
-
-            if (!apiKey) {
-                resultsDiv.innerHTML = '<div class="error">⚠️ API 키를 먼저 입력해주세요.</div>';
-                return;
-            }
 
             if (!query) {
                 resultsDiv.innerHTML = '<div class="error">⚠️ 검색어를 입력해주세요.</div>';
@@ -293,7 +244,7 @@
 
             try {
                 // CORS 프록시를 통한 알라딘 API 호출
-                const aladinUrl = `https://www.aladin.co.kr/ttb/api/ItemSearch.aspx?ttbkey=${apiKey}&Query=${encodeURIComponent(query)}&QueryType=Title&MaxResults=20&start=1&SearchTarget=Book&output=js&Version=20131101`;
+                const aladinUrl = `https://www.aladin.co.kr/ttb/api/ItemSearch.aspx?ttbkey=${API_KEY}&Query=${encodeURIComponent(query)}&QueryType=Title&MaxResults=20&start=1&SearchTarget=Book&output=js&Version=20131101`;
                 
                 // CORS 프록시 사용 (여러 옵션 시도)
                 const corsProxies = [
@@ -349,11 +300,7 @@
                 console.error('Error:', error);
                 resultsDiv.innerHTML = `
                     <div class="error">
-                        ❌검색 중 오류가 발생했습니다.<br><br>
-                        <strong>확인사항:</strong><br>
-                        - API 키가 올바른지 확인해주세요<br>
-                        - API 키 앞뒤 공백이 없는지 확인해주세요<br>
-                        - 알라딘 TTB 관리 페이지에서 API 키가 활성화되어 있는지 확인해주세요<br><br>
+                        ❌ 검색 중 오류가 발생했습니다.<br><br>
                         <small style="color: #999;">오류 메시지: ${error.message}</small>
                     </div>
                 `;
