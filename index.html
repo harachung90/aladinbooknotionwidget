@@ -33,6 +33,51 @@
             margin-bottom: 20px;
         }
 
+        .settings-toggle {
+            text-align: right;
+            margin-bottom: 10px;
+        }
+
+        .settings-toggle button {
+            padding: 8px 16px;
+            font-size: 13px;
+            background: #f5f5f5;
+            color: #666;
+        }
+
+        .settings-panel {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .settings-panel.visible {
+            display: block;
+        }
+
+        .setting-item {
+            margin-bottom: 12px;
+        }
+
+        .setting-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .setting-item label {
+            display: block;
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .setting-item input {
+            width: 100%;
+            padding: 10px;
+            font-size: 13px;
+        }
+
         .search-input-wrapper {
             display: flex;
             gap: 10px;
@@ -98,6 +143,17 @@
             line-height: 1.6;
         }
 
+        .success {
+            background: #f1f8e9;
+            border: 1px solid #c5e1a5;
+            color: #558b2f;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
         .results {
             display: grid;
             gap: 16px;
@@ -112,12 +168,35 @@
             border-radius: 12px;
             transition: all 0.2s;
             cursor: pointer;
+            position: relative;
         }
 
         .book-card:hover {
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
             transform: translateY(-2px);
             border-color: #4a90e2;
+        }
+
+        .book-card.saving {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .book-card.saved {
+            border-color: #4caf50;
+            background: #f1f8e9;
+        }
+
+        .save-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #4caf50;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
         }
 
         .book-cover {
@@ -208,6 +287,25 @@
 <body>
     <div class="container">
         <div class="search-box">
+            <div class="settings-toggle">
+                <button onclick="toggleSettings()">⚙️ 설정</button>
+            </div>
+            
+            <div id="settingsPanel" class="settings-panel">
+                <div class="setting-item">
+                    <label>알라딘 API 키</label>
+                    <input type="text" id="aladinApiKey" placeholder="ttbharachung901616001">
+                </div>
+                <div class="setting-item">
+                    <label>노션 Integration 토큰</label>
+                    <input type="password" id="notionToken" placeholder="secret_...">
+                </div>
+                <div class="setting-item">
+                    <label>노션 데이터베이스 ID</label>
+                    <input type="text" id="notionDbId" placeholder="2c1579c8b7088032acc1c192088b251f">
+                </div>
+            </div>
+
             <div class="search-input-wrapper">
                 <input type="text" id="searchInput" placeholder="책 제목, 저자, ISBN으로 검색하세요" />
                 <button id="searchBtn" onclick="searchBooks()">검색</button>
@@ -218,8 +316,37 @@
     </div>
 
     <script>
-        // 하드코딩된 API 키
-        const API_KEY = 'ttbharachung901616001';
+        // 로컬 스토리지에서 설정 불러오기
+        function loadSettings() {
+            const aladinKey = localStorage.getItem('aladinApiKey') || 'ttbharachung901616001';
+            const notionToken = localStorage.getItem('notionToken') || '';
+            const notionDbId = localStorage.getItem('notionDbId') || '2c1579c8b7088032acc1c192088b251f';
+            
+            document.getElementById('aladinApiKey').value = aladinKey;
+            document.getElementById('notionToken').value = notionToken;
+            document.getElementById('notionDbId').value = notionDbId;
+        }
+
+        // 설정 저장
+        function saveSettings() {
+            localStorage.setItem('aladinApiKey', document.getElementById('aladinApiKey').value);
+            localStorage.setItem('notionToken', document.getElementById('notionToken').value);
+            localStorage.setItem('notionDbId', document.getElementById('notionDbId').value);
+        }
+
+        // 설정 패널 토글
+        function toggleSettings() {
+            const panel = document.getElementById('settingsPanel');
+            panel.classList.toggle('visible');
+        }
+
+        // 설정 자동 저장
+        ['aladinApiKey', 'notionToken', 'notionDbId'].forEach(id => {
+            document.getElementById(id).addEventListener('change', saveSettings);
+        });
+
+        // 페이지 로드 시 설정 불러오기
+        loadSettings();
 
         // Enter 키로 검색
         document.getElementById('searchInput').addEventListener('keypress', (e) => {
@@ -229,9 +356,15 @@
         });
 
         async function searchBooks() {
+            const ALADIN_API_KEY = document.getElementById('aladinApiKey').value.trim();
             const query = document.getElementById('searchInput').value.trim();
             const resultsDiv = document.getElementById('results');
             const searchBtn = document.getElementById('searchBtn');
+
+            if (!ALADIN_API_KEY) {
+                resultsDiv.innerHTML = '<div class="error">⚠️ 설정에서 알라딘 API 키를 입력해주세요.</div>';
+                return;
+            }
 
             if (!query) {
                 resultsDiv.innerHTML = '<div class="error">⚠️ 검색어를 입력해주세요.</div>';
@@ -244,7 +377,7 @@
 
             try {
                 // CORS 프록시를 통한 알라딘 API 호출
-                const aladinUrl = `https://www.aladin.co.kr/ttb/api/ItemSearch.aspx?ttbkey=${API_KEY}&Query=${encodeURIComponent(query)}&QueryType=Title&MaxResults=20&start=1&SearchTarget=Book&output=js&Version=20131101`;
+                const aladinUrl = `https://www.aladin.co.kr/ttb/api/ItemSearch.aspx?ttbkey=${ALADIN_API_KEY}&Query=${encodeURIComponent(query)}&QueryType=Title&MaxResults=20&start=1&SearchTarget=Book&output=js&Version=20131101`;
                 
                 // CORS 프록시 사용 (여러 옵션 시도)
                 const corsProxies = [
@@ -312,12 +445,12 @@
         function displayResults(books) {
             const resultsDiv = document.getElementById('results');
             
-            const html = books.map(book => {
+            const html = books.map((book, index) => {
                 const discount = book.priceSales < book.priceStandard ? 
                     `<span class="original">${book.priceStandard.toLocaleString()}원</span>` : '';
                 
                 return `
-                    <div class="book-card" onclick="window.open('${book.link}', '_blank')">
+                    <div class="book-card" data-book-index="${index}" onclick="saveToNotion(${index})">
                         <div class="book-cover">
                             <img src="${book.cover}" alt="${book.title}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22140%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22100%22 height=%22140%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2212%22%3E이미지 없음%3C/text%3E%3C/svg%3E'">
                         </div>
@@ -336,7 +469,28 @@
             }).join('');
 
             resultsDiv.innerHTML = `<div class="results">${html}</div>`;
+            
+            // 책 데이터를 전역 변수에 저장
+            window.currentBooks = books;
         }
-    </script>
-</body>
-</html>
+
+        async function saveToNotion(bookIndex) {
+            const NOTION_TOKEN = document.getElementById('notionToken').value.trim();
+            const NOTION_DATABASE_ID = document.getElementById('notionDbId').value.trim();
+            
+            if (!NOTION_TOKEN || !NOTION_DATABASE_ID) {
+                alert('⚠️ 설정에서 노션 토큰과 데이터베이스 ID를 입력해주세요.');
+                return;
+            }
+
+            const book = window.currentBooks[bookIndex];
+            const card = document.querySelector(`[data-book-index="${bookIndex}"]`);
+            
+            // 이미 저장 중이면 무시
+            if (card.classList.contains('saving')) {
+                return;
+            }
+
+            // 저장 중 표시
+            card.classList.add('saving');
+            car
