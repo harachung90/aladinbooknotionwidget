@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>책 검색 위젯</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            background: #ffffff;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .search-box {
+            position: sticky;
+            top: 0;
+            background: white;
+            padding: 20px 0;
+            z-index: 100;
+            border-bottom: 2px solid #f0f0f0;
+            margin-bottom: 20px;
+        }
+
+        .search-input-wrapper {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 14px 18px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: all 0.2s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #4a90e2;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+        }
+
+        button {
+            padding: 14px 28px;
+            background: #4a90e2;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: #357abd;
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 15px;
+        }
+
+        .error {
+            background: #fff3f3;
+            border: 1px solid #ffcdd2;
+            color: #c62828;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .results {
+            display: grid;
+            gap: 16px;
+        }
+
+        .book-card {
+            display: flex;
+            gap: 16px;
+            padding: 20px;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            transition: all 0.2s;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .book-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px);
+            border-color: #4a90e2;
+        }
+
+        .book-card.copied {
+            border-color: #4caf50;
+            background: #f1f8e9;
+        }
+
+        .copy-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #4caf50;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .book-cover {
+            flex-shrink: 0;
+            width: 100px;
+            height: 140px;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .book-cover img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .book-info {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .book-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: #1a1a1a;
+            line-height: 1.4;
+        }
+
+        .book-author {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .book-publisher {
+            font-size: 13px;
+            color: #888;
+        }
+
+        .book-price {
+            font-size: 16px;
+            font-weight: 600;
+            color: #e65100;
+            margin-top: auto;
+        }
+
+        .book-price .original {
+            text-decoration: line-through;
+            color: #999;
+            font-size: 14px;
+            margin-left: 8px;
+        }
+
+        .book-description {
+            font-size: 13px;
+            color: #555;
+            line-height: 1.6;
+            margin-top: 8px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+            font-size: 15px;
+        }
+
+        .info-banner {
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+            color: #1565c0;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 600px) {
+            .book-card {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+
+            .book-cover {
+                width: 120px;
+                height: 168px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="search-box">
+            <div class="info-banner">
+                💡 <strong>사용 방법:</strong> 책을 클릭하면 노션에 붙여넣기할 수 있는 텍스트가 자동으로 복사됩니다!
+            </div>
+            
+            <div class="search-input-wrapper">
+                <input type="text" id="searchInput" placeholder="책 제목, 저자, ISBN으로 검색하세요" />
+                <button id="searchBtn">검색</button>
+            </div>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const ALADIN_API_KEY = 'ttbharachung901616001';
+        let currentBooks = [];
+
+        document.getElementById('searchBtn').addEventListener('click', searchBooks);
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchBooks();
+            }
+        });
+
+        async function searchBooks() {
+            const query = document.getElementById('searchInput').value.trim();
+            const resultsDiv = document.getElementById('results');
+            const searchBtn = document.getElementById('searchBtn');
+
+            if (!query) {
+                resultsDiv.innerHTML = '<div class="error">⚠️ 검색어를 입력해주세요.</div>';
+                return;
+            }
+
+            resultsDiv.innerHTML = '<div class="loading">🔍 검색 중...</div>';
+            searchBtn.disabled = true;
+
+            try {
+                const aladinUrl = `https://www.aladin.co.kr/ttb/api/ItemSearch.aspx?ttbkey=${ALADIN_API_KEY}&Query=${encodeURIComponent(query)}&QueryType=Title&MaxResults=20&start=1&SearchTarget=Book&output=js&Version=20131101`;
+                
+                const corsProxies = [
+                    `https://api.allorigins.win/raw?url=${encodeURIComponent(aladinUrl)}`,
+                    `https://corsproxy.io/?${encodeURIComponent(aladinUrl)}`
+                ];
+
+                let data = null;
+                let lastError = null;
+
+                for (const proxyUrl of corsProxies) {
+                    try {
+                        const response = await fetch(proxyUrl);
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+
+                        const text = await response.text();
+                        
+                        try {
+                            data = JSON.parse(text);
+                            break;
+                        } catch (e) {
+                            continue;
+                        }
+                    } catch (error) {
+                        lastError = error;
+                        continue;
+                    }
+                }
+
+                if (!data) {
+                    throw new Error(lastError?.message || 'API 호출 실패');
+                }
+
+                if (data.errorCode) {
+                    throw new Error(`API 오류: ${data.errorMessage || '알 수 없는 오류'}`);
+                }
+
+                if (!data.item || data.item.length === 0) {
+                    resultsDiv.innerHTML = '<div class="no-results">📚 검색 결과가 없습니다.</div>';
+                    return;
+                }
+
+                displayResults(data.item);
+
+            } catch (error) {
+                console.error('Error:', error);
+                resultsDiv.innerHTML = `
+                    <div class="error">
+                        ❌검색 중 오류가 발생했습니다.<br><br>
+                        <small style="color: #999;">오류 메시지: ${error.message}</small>
+                    </div>
+                `;
+            } finally {
+                searchBtn.disabled = false;
+            }
+        }
+
+        function displayResults(books) {
+            currentBooks = books;
+            const resultsDiv = document.getElementById('results');
+            
+            const html = books.map((book, index) => {
+                const discount = book.priceSales < book.priceStandard ? 
+                    `<span class="original">${book.priceStandard.toLocaleString()}원</span>` : '';
+                
+                return `
+                    <div class="book-card" data-book-index="${index}">
+                        <div class="book-cover">
+                            <img src="${book.cover}" alt="${book.title}" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22140%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22100%22 height=%22140%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2212%22%3E이미지 없음%3C/text%3E%3C/svg%3E'">
+                        </div>
+                        <div class="book-info">
+                            <div class="book-title">${book.title}</div>
+                            <div class="book-author">✍️ ${book.author}</div>
+                            <div class="book-publisher">📖 ${book.publisher} · ${book.pubDate}</div>
+                            ${book.description ? `<div class="book-description">${book.description}</div>` : ''}
+                            <div class="book-price">
+                                ${book.priceSales.toLocaleString()}원
+                                ${discount}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            resultsDiv.innerHTML = `<div class="results">${html}</div>`;
+            
+            document.querySelectorAll('.book-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    const index = parseInt(this.getAttribute('data-book-index'));
+                    copyBookInfo(index, this);
+                });
+            });
+        }
+
+        async function copyBookInfo(bookIndex, card) {
+            const book = currentBooks[bookIndex];
+            
+            // 노션에 붙여넣기할 텍스트 생성
+            const textToCopy = `${book.title}
+저자: ${book.author}
+출판사: ${book.publisher}
+출판일: ${book.pubDate}
+가격: ${book.priceSales.toLocaleString()}원
+표지: ${book.cover}
+링크: ${book.link}`;
+
+            try {
+                await navigator.clipboard.writeText(textToCopy);
+                
+                // 복사 완료 표시
+                card.classList.add('copied');
+                const indicator = document.createElement('div');
+                indicator.className = 'copy-indicator';
+                indicator.textContent = '✓ 복사됨!';
+                card.appendChild(indicator);
+                
+                setTimeout(() => {
+                    card.classList.remove('copied');
+                    indicator.remove();
+                }, 2000);
+                
+            } catch (error) {
+                alert('복사 실패: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>
