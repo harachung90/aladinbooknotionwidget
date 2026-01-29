@@ -2,8 +2,5 @@
   "name": "book-search-widget",
   "version": "1.0.0",
   "description": "책 검색 노션 위젯",
-  "main": "index.html",
-  "scripts": {
-    "dev": "vercel dev"
-  }
+  "main": "index.html"
 }

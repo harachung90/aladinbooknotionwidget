@@ -1,5 +1,4 @@
-// api/save-to-notion.js
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   // CORS 헤더 설정
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -87,16 +86,30 @@ export default async function handler(req, res) {
       })
     });
 
+    const responseText = await response.text();
+    
     if (!response.ok) {
-      const errorData = await response.json();
-      return res.status(response.status).json({ error: errorData.message || 'Notion API error' });
+      let errorData;
+      try {
+        errorData = JSON.parse(responseText);
+      } catch (e) {
+        errorData = { message: responseText };
+      }
+      console.error('Notion API error:', errorData);
+      return res.status(response.status).json({ 
+        error: errorData.message || '노션 API 오류',
+        details: errorData
+      });
     }
 
-    const data = await response.json();
+    const data = JSON.parse(responseText);
     return res.status(200).json({ success: true, data });
 
   } catch (error) {
-    console.error('Error:', error);
-    return res.status(500).json({ error: error.message });
+    console.error('Server error:', error);
+    return res.status(500).json({ 
+      error: error.message,
+      stack: error.stack
+    });
   }
-}
+};
